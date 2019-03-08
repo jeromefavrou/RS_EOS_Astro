@@ -330,7 +330,22 @@ void RC_Apn::get_config(gp2::Conf_param const & param, _Data & gc)
 
         Tram rep_tram=this->Recv(1);
 
-        //lecture de gc
+        std::string tmps("");
+        for(auto i=2;i<rep_tram.size();i++)
+        {
+            if(rep_tram.get_data()[i]==(char)Tram::Com_bytes::EOT)
+                break;
+
+            if(rep_tram.get_data()[i]==(char)Tram::Com_bytes::US)
+            {
+                std::cout << tmps << std::endl;
+                gc.push_back(tmps);
+                tmps.clear();
+                continue;
+            }
+
+            tmps+=(char)rep_tram.get_data()[i];
+        }
     }
 }
 
@@ -352,7 +367,7 @@ void RC_Apn::check_acknowledge(VCHAR const & rep_tram)
                 {
                     if(t==Tram::Com_bytes::EOT)
                         break;
-                    if(t==Tram::Com_bytes::SOH)
+                    if(t==Tram::Com_bytes::SOH || t==Tram::Com_bytes::NAK)
                         continue;
 
                     er+=t;

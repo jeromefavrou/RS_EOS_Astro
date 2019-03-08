@@ -23,6 +23,10 @@ std::string Error::what() throw()
 
     return str_erreur;
 }
+std::string Error::str(void) const
+{
+    return this->m_phrase;
+}
 Error::niveau Error::get_niveau(void) const
 {
     return this->m_niveau;

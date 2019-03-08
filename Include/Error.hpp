@@ -13,6 +13,7 @@ public:
     Error(int numero, std::string const& phrase,niveau _niveau) throw();
     std::string what() throw();
     niveau get_niveau(void) const;
+    std::string str(void) const;
     virtual ~Error() throw();
 
 protected:
