@@ -5,8 +5,40 @@
 
 #define Id_Socket 0
 
-#include "Remote_controle_apn.hpp"
 #include "serveur.cpp"
+#include "gp2_utility.hpp"
+#include <chrono>
+#include <thread>
+
+namespace RC_Apn
+{
+    class Com_bytes
+{
+public:
+    static char constexpr Check_Apn=0x3A; //check apn
+    static char constexpr Set_Config=0x3B; //set config
+    static char constexpr Get_Config=0x3C; //get config
+    static char constexpr Capture_Eos_Dslr=0x3D; //capture eos dslr
+    static char constexpr Download=0x3E; //download
+    static char constexpr Delete_File=0x3F; //download and remove
+    static char constexpr Ls_Files=0x40; //download and remove
+
+    static char constexpr Aperture=0x61;
+    static char constexpr Shutterspeed=0x62;
+    static char constexpr Iso=0x63;
+    static char constexpr Format=0x64;
+    static char constexpr Target=0x65;
+    static char constexpr White_balance=0x66;
+    static char constexpr Picture_style=0x67;
+    static char constexpr Older=0x69;
+    static char constexpr Exposure=0x6A;
+    static char constexpr Intervalle=0x6B;
+
+    static char constexpr Debug_mode=0x6C;
+    static char constexpr Tcp_client=0x6D;
+};
+}
+
 
 Tram Read_Tram(char const ending_byte,CSocketTCPServeur & Server,int id_server,int const _time_out)
 {
@@ -259,19 +291,8 @@ int main(int argc,char ** argv)
 
     bool as_client=false;
 
-    RC_Apn apn;
+
     CSocketTCPServeur Server;
-
-    #ifdef __DEBUG_MODE
-    apn.debug_mode=true;
-    #else
-    apn.debug_mode=false;
-    #endif // __DEBUG_MODE
-
-    apn.tcp_client=false;
-    apn.no_download= false;
-    apn.no_delete= false;
-    apn.older= false;
 
     try
     {
