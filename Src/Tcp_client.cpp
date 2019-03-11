@@ -114,7 +114,7 @@ Tram Read_Tram(char const ending_byte,CSocketTCPClient & Client,int id_client,in
     }
 
     if(!Do)
-        throw std::string("communication time out");
+        throw Error(4,"communication time out",Error::niveau::WARNING);
 
     Do=false;
     time_out.join();

@@ -8,6 +8,28 @@
 #include "Remote_controle_apn.hpp"
 #include "serveur.cpp"
 
+Tram Read_Tram(char const ending_byte,CSocketTCPServeur & Server,int id_server,int const _time_out)
+{
+    Tram data;
+
+    bool Do=true;
+
+
+    while(Do)
+    {
+        VCHAR tps;
+
+        Server.Read<2048>(id_server,tps);
+
+        data+=tps;
+
+        if(tps.back()==ending_byte)
+            break;
+    }
+
+    return data;
+}
+
 void check_acknowledge(VCHAR const & rep_tram)
 {
         if(rep_tram[0]==Tram::Com_bytes::SOH && rep_tram.back()==Tram::Com_bytes::EOT)
@@ -37,7 +59,6 @@ void check_acknowledge(VCHAR const & rep_tram)
 }
 void _get_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data,gp2::Data & gc)
 {
-
     try
     {
         gp2::Get_config(cp,gc);
@@ -87,7 +108,34 @@ void _set_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data)
     }
 }
 
-void treatement(VCHAR const & r_data,Tram & t_data)
+void _remove(VCHAR const & r_data,Tram & t_data)
+{
+    try
+    {
+        std::string value("");
+
+        for(auto i=2;i<r_data.size();i++)
+        {
+            if(r_data[i]==Tram::Com_bytes::EOT)
+                break;
+
+            value+=(char)r_data[i];
+        }
+
+        gp2::Delete_file(value,false);
+
+        t_data+=(char)Tram::Com_bytes::ACK;
+    }
+    catch(Error & e)
+    {
+        std::cerr<< e.what() <<std::endl;
+
+        t_data+=(char)Tram::Com_bytes::NAK;
+        t_data+=e.str();
+    }
+}
+
+void process(VCHAR const & r_data,Tram & t_data)
 {
     struct gp2::mnt _mnt{"gio mount",""};
     t_data.clear();
@@ -165,6 +213,22 @@ void treatement(VCHAR const & r_data,Tram & t_data)
             t_data+="demande de Set_Config inconnue: ";
             t_data+=r_data[2];
         }
+    }
+    else if(r_data[1]==(char)RC_Apn::Com_bytes::Capture_Eos_Dslr)
+    {
+        t_data+=(char)Tram::Com_bytes::ACK;
+    }
+    else if(r_data[1]==(char)RC_Apn::Com_bytes::Download)
+    {
+        t_data+=(char)Tram::Com_bytes::NAK;
+    }
+    else if(r_data[1]==(char)RC_Apn::Com_bytes::Delete_File)
+    {
+        _remove(r_data,t_data);
+    }
+    else if(r_data[1]==(char)RC_Apn::Com_bytes::Ls_Files)
+    {
+        t_data+=(char)Tram::Com_bytes::ACK;
     }
     else
     {
@@ -261,7 +325,9 @@ int main(int argc,char ** argv)
         Tram Respond;
         try
         {
-            if(Server.Read<2048>(0,Request.get_data())<=0)
+            Request=Read_Tram(Tram::Com_bytes::EOT,Server,Id_Socket,500);
+
+            if(Request.size()<=0)
                 throw Error(1,"client deconnecté",Error::niveau::WARNING);
         }
         catch(Error & e)
@@ -295,7 +361,7 @@ int main(int argc,char ** argv)
 
             check_acknowledge(Request.get_c_data());
 
-            treatement(Request.get_c_data(),Respond);
+            process(Request.get_c_data(),Respond);
 
             #ifdef __DEBUG_MODE
                 std::clog << "Tram T: ("<< Respond.size() << " octets) " <<std::hex;

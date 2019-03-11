@@ -256,23 +256,30 @@ void RC_Apn::download(std::string const &why)
 
     if(!this->tcp_client)
     {
+        if(this->debug_mode)
+            std::clog << "téléchargement local en cours"<<std::endl;
         system(std::string("gphoto2 -p "+why).c_str());
+
+        if(this->debug_mode)
+            std::clog << "téléchargement local terminé"<<std::endl;
     }
     else
     {
+        if(this->debug_mode)
+            std::clog << "téléchargement depuis serveur en cours"<<std::endl;
+
         Tram tram,rep_tram;
         tram+=char(Tram::Com_bytes::SOH);
-        tram+=char(!this->download_and_remove?RC_Apn::Com_bytes::Download:RC_Apn::Com_bytes::Download_And_Remove);
+        tram+=char(RC_Apn::Com_bytes::Download);
         tram+=why;
         tram+=char(Tram::Com_bytes::EOT);
 
-        //envoir et reception du server par le client
         this->m_client->Write(this->m_id_client,tram.get_data());
 
-        std::string name("");
-        //titre this->m_client->Read<2048>(this->m_id_client,rep_tram.get_data());
-
         rep_tram=this->Recv(15);
+
+        if(this->debug_mode)
+            std::clog << "téléchargement depuis serveur en cours"<<std::endl;
     }
 }
 ///------------------------------------------------------------
@@ -283,28 +290,49 @@ void RC_Apn::delete_file(gp2::Folder_data fd)
     if(this->no_delete)
         return ;
 
-    if(!this->tcp_client)
+    for(auto F=fd.begin();F!=fd.end();F++)
     {
-        if(this->debug_mode)
-            std::clog << "suppression de fichiers en local " <<std::endl;
-
-        for(auto F=fd.begin();F!=fd.end();F++)
+        for(auto G=F->second.begin();G!=F->second.end();G++)
         {
-            for(auto G=F->second.begin();G!=F->second.end();G++)
+            if(!this->tcp_client)
             {
+                if(this->debug_mode)
+                    std::clog << "suppression de fichiers en local " <<std::endl;
+
                 gp2::Delete_file(F->first+"/"+*G,this->debug_mode);
 
                 if(this->debug_mode)
                     std::clog << F->first+"/"+*G+ " supprimé"<<std::endl;
             }
+            else
+            {
+                if(this->debug_mode)
+                    std::clog << "suppression de fichier avec le serveur " <<std::endl;
 
-            F->second=gp2::Data(0);
+                Tram tram,rep_tram;
+
+                tram+=char(Tram::Com_bytes::SOH);
+                tram+=char(RC_Apn::Com_bytes::Delete_File);
+                tram+=F->first+"/"+*G;
+                tram+=char(Tram::Com_bytes::EOT);
+
+                try
+                {
+                    this->m_client->Write(this->m_id_client,tram.get_data());
+
+                    rep_tram=this->Recv(50);
+
+                    if(this->debug_mode)
+                        std::clog << F->first+"/"+*G+ " supprimé"<<std::endl;
+                }
+                catch(RC_Apn::Erreur& e)
+                {
+                    std::cerr << e.what() <<std:: endl;
+                }
+            }
         }
-    }
-    else
-    {
-        if(this->debug_mode)
-            std::clog << "suppression de fichier avec le serveur " <<std::endl;
+
+        F->second=gp2::Data(0);
     }
 }
 ///-------------------------------------------------------------
@@ -338,7 +366,6 @@ void RC_Apn::get_config(gp2::Conf_param const & param, _Data & gc)
 
             if(rep_tram.get_data()[i]==(char)Tram::Com_bytes::US)
             {
-                std::cout << tmps << std::endl;
                 gc.push_back(tmps);
                 tmps.clear();
                 continue;

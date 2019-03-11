@@ -44,7 +44,8 @@ public:
         static char constexpr Get_Config=0x3C; //get config
         static char constexpr Capture_Eos_Dslr=0x3D; //capture eos dslr
         static char constexpr Download=0x3E; //download
-        static char constexpr Download_And_Remove=0x3F; //download and remove
+        static char constexpr Delete_File=0x3F; //download and remove
+        static char constexpr Ls_Files=0x40; //download and remove
 
         static char constexpr Aperture=0x61;
         static char constexpr Shutterspeed=0x62;
@@ -53,10 +54,10 @@ public:
         static char constexpr Target=0x65;
         static char constexpr White_balance=0x66;
         static char constexpr Picture_style=0x67;
-        static char constexpr File=0x68;
         static char constexpr Older=0x69;
         static char constexpr Exposure=0x6A;
         static char constexpr Intervalle=0x6B;
+
         static char constexpr Debug_mode=0x6C;
         static char constexpr Tcp_client=0x6D;
     };
