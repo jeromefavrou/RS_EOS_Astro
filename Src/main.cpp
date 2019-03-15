@@ -53,6 +53,9 @@ Tram Read_Tram(char const ending_byte,CSocketTCPServeur & Server,int id_server,i
 
         Server.Read<2048>(id_server,tps);
 
+        if(tps.size()<=0)
+            throw Error(1,"client deconnecté",Error::niveau::WARNING);
+
         data+=tps;
 
         if(tps.back()==ending_byte)
@@ -91,6 +94,7 @@ void check_acknowledge(VCHAR const & rep_tram)
 }
 void _get_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data,gp2::Data & gc)
 {
+    std::cout <<"(get_config)["+gp2::Conf_param_to_str(cp)+"]"<< std::endl;
     try
     {
         gp2::Get_config(cp,gc);
@@ -114,6 +118,7 @@ void _get_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data,gp2:
 
 void _set_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data)
 {
+    std::cout <<"(set_config)["+gp2::Conf_param_to_str(cp)+"]"<< std::endl;
     try
     {
         std::string value("");
@@ -175,6 +180,7 @@ void process(VCHAR const & r_data,Tram & t_data)
 
     if(r_data[1]==(char)RC_Apn::Com_bytes::Check_Apn)
     {
+        std::cout <<"(check apn)"<< std::endl;
         gp2::Data device;
         gp2::Auto_detect(device);
 
@@ -191,11 +197,17 @@ void process(VCHAR const & r_data,Tram & t_data)
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Older)
     {
+        std::cout <<"(Older)"<< std::endl;
         t_data+=(char)Tram::Com_bytes::ACK;
     }
-
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Debug_mode)
     {
+        std::cout <<"(Debug_mode)"<< std::endl;
+        t_data+=(char)Tram::Com_bytes::ACK;
+    }
+    else if(r_data[1]==(char)RC_Apn::Com_bytes::Tcp_client)
+    {
+        std::cout <<"(Tcp_client)"<< std::endl;
         t_data+=(char)Tram::Com_bytes::ACK;
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Get_Config)//simplifiable par une fonction parsé
@@ -248,30 +260,33 @@ void process(VCHAR const & r_data,Tram & t_data)
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Capture_Eos_Dslr)
     {
+        std::cout <<"(Capture)"<< std::endl;
         t_data+=(char)Tram::Com_bytes::ACK;
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Download)
     {
+        std::cout <<"(Download_file)"<< std::endl;
         t_data+=(char)Tram::Com_bytes::NAK;
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Delete_File)
     {
+        std::cout <<"(Delete_file)"<< std::endl;
         _remove(r_data,t_data);
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Ls_Files)
     {
+        std::cout <<"(Ls_files)"<< std::endl;
         t_data+=(char)Tram::Com_bytes::ACK;
     }
     else
     {
+        std::cout <<"(non reconnue)"<< std::endl;
         t_data+=(char)Tram::Com_bytes::NAK;
         t_data+="commande inconnue: ";
         t_data+=r_data[1];
     }
 
-
     t_data+=(char)Tram::Com_bytes::EOT;
-
 }
 
 void init_configure(struct gp2::mnt & _mount)
@@ -291,7 +306,6 @@ int main(int argc,char ** argv)
 
     bool as_client=false;
 
-
     CSocketTCPServeur Server;
 
     try
@@ -306,7 +320,7 @@ int main(int argc,char ** argv)
     {
         std::cerr << e.what() << std::endl;
 
-        if(e.get_niveau()!=Error::niveau::WARNING)
+        if(e.get_niveau()==Error::niveau::FATAL_ERROR)
             return -1;
 
         #ifndef WIN32
@@ -347,15 +361,12 @@ int main(int argc,char ** argv)
         try
         {
             Request=Read_Tram(Tram::Com_bytes::EOT,Server,Id_Socket,500);
-
-            if(Request.size()<=0)
-                throw Error(1,"client deconnecté",Error::niveau::WARNING);
         }
         catch(Error & e)
         {
             std::cerr << e.what() << std::endl;
 
-            if(e.get_niveau()!=Error::niveau::WARNING)
+            if(e.get_niveau()==Error::niveau::FATAL_ERROR)
                 return -1;
 
             #ifdef __DEBUG_MODE
@@ -377,7 +388,7 @@ int main(int argc,char ** argv)
                  std::clog << "Tram R: ("<< Request.size() << " octets) " <<std::hex;
                 for(auto & i:Request.get_data())
                     std::clog <<"0x"<< static_cast<int>(i) << " ";
-                std::clog  << std::dec << std::endl<< std::endl;
+                std::clog  << std::dec << std::endl;
             #endif // __DEBUG_MODE
 
             check_acknowledge(Request.get_c_data());
@@ -397,7 +408,7 @@ int main(int argc,char ** argv)
         {
             std::cerr << e.what() << std::endl;
 
-            if(e.get_niveau()!=Error::niveau::WARNING)
+            if(e.get_niveau()==Error::niveau::FATAL_ERROR)
                 return -1;
         }
 

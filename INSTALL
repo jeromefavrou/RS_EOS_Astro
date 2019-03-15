@@ -1,18 +1,24 @@
+sudo mkdir -vp obj/Release/Src
 
-mkdir -vp obj/Release/Src
+g++ -Wall -fexceptions -O3 -std=c++14 -IInclude -c Src/main.cpp -o obj/Release/Src/main.o
 
-g++ -Wall -fexceptions -O3 -std=c++14 -m64 -IInclude -c Src/main.cpp -o obj/Release/Src/main.o
+g++ -Wall -fexceptions -O3 -std=c++14 -IInclude -c Src/Error.cpp -o obj/Release/Src/Error.o
 
-g++ -Wall -fexceptions -O3 -std=c++14 -m64 -IInclude -c Src/Error.cpp -o obj/Release/Src/Error.o
+g++ -Wall -fexceptions -O3 -std=c++14 -IInclude -c Src/Tram.cpp -o obj/Release/Src/Tram.o
 
-g++ -Wall -fexceptions -O3 -std=c++14 -m64 -IInclude -c Src/Tram.cpp -o obj/Release/Src/Tram.o
+g++ -Wall -fexceptions -O3 -std=c++14 -IInclude -c Src/Utility.cpp -o obj/Release/Src/Utility.o
 
-g++ -Wall -fexceptions -O3 -std=c++14 -m64 -IInclude -c Src/Utility.cpp -o obj/Release/Src/Utility.o
+g++ -Wall -fexceptions -O3 -std=c++14 -IInclude -c Src/Gp2_utility.cpp -o obj/Release/Src/Gp2_utility.o
 
-g++ -Wall -fexceptions -O3 -std=c++14 -m64 -IInclude -c Src/Gp2_ulility.cpp -o obj/Release/Src/Gp2_ulility.o
-
-g++ -Wall -fexceptions -O3 -std=c++14 -m64 -IInclude -c Src/serveur.cpp -o obj/Release/Src/serveur.o
+g++ -Wall -fexceptions -O3 -std=c++14 -IInclude -c Src/serveur.cpp -o obj/Release/Src/serveur.o
 
 mkdir -vp bin/Release
 
-g++  -o bin/Release/RS_EOS_Astro obj/Release/Src/main.o obj/Release/Src/Error.o obj/Release/Src/Gp2_ulility.o obj/Release/Src/Tram.o obj/Release/Src/Utility.o  -s -m64 -lpthread
+g++  -o bin/Release/RS_EOS_Astro obj/Release/Src/main.o obj/Release/Src/Error.o obj/Release/Src/Gp2_utility.o obj/Release/Src/Tram.o obj/Release/Src/Utility.o  -s -lpthread
+
+mkdir -vp /opt/RS_EOS_Astro
+
+cp bin/Release/RS_EOS_Astro /opt/RS_EOS_Astro
+cp .mnt_configure /opt/RS_EOS_Astro
+cp .server_configure /opt/RS_EOS_Astro
+
