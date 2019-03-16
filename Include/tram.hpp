@@ -26,6 +26,7 @@ class Tram
             static char constexpr ACK=0x06; //Acknowledge
             static char constexpr NAK=0x15; //Negative Acknowledge
             static char constexpr US= 0x1F; //Unit Separator
+            static char constexpr GS= 0x1D; //Group Separator
         };
 
         Tram(void);

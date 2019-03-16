@@ -111,6 +111,8 @@ void _get_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data,gp2:
     {
         std::cerr<< e.what() <<std::endl;
 
+        t_data.clear();
+        t_data+=(char)Tram::Com_bytes::SOH;
         t_data+=(char)Tram::Com_bytes::NAK;
         t_data+=e.str();
     }
@@ -140,6 +142,8 @@ void _set_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data)
     {
         std::cerr<< e.what() <<std::endl;
 
+        t_data.clear();
+        t_data+=(char)Tram::Com_bytes::SOH;
         t_data+=(char)Tram::Com_bytes::NAK;
         t_data+=e.str();
     }
@@ -167,6 +171,73 @@ void _remove(VCHAR const & r_data,Tram & t_data)
     {
         std::cerr<< e.what() <<std::endl;
 
+        t_data.clear();
+        t_data+=(char)Tram::Com_bytes::SOH;
+        t_data+=(char)Tram::Com_bytes::NAK;
+        t_data+=e.str();
+    }
+}
+
+void _ls_file(Tram & t_data)
+{
+    try
+    {
+        gp2::Folder_data fd;
+        gp2::List_files(fd,true);
+
+        t_data+=(char)Tram::Com_bytes::ACK;
+
+        for(auto file=fd.begin();file!=fd.end();file++)
+        {
+
+            t_data+=std::string(file->first);
+            t_data+=(char)Tram::Com_bytes::GS;
+
+            for(auto name=file->second.begin();name!=file->second.end();name++)
+            {
+                t_data+=std::string(*name);
+
+                t_data+=(char)Tram::Com_bytes::US;
+            }
+        }
+    }
+    catch(Error & e)
+    {
+        std::cerr<< e.what() <<std::endl;
+
+        t_data.clear();
+        t_data+=(char)Tram::Com_bytes::SOH;
+        t_data+=(char)Tram::Com_bytes::NAK;
+        t_data+=e.str();
+    }
+}
+
+void _capture(VCHAR const & r_data,Tram & t_data)
+{
+    try
+    {
+        std::string exposure("");
+
+        for(auto i=2;i<r_data.size();i++)
+        {
+            if(r_data[i]==(char)Tram::Com_bytes::EOT)
+                break;
+            else if(r_data[i]==(char)Tram::Com_bytes::US)
+                break;
+
+            exposure+=r_data[i];
+        }
+
+        gp2::Capture(exposure,false);
+
+        t_data+=(char)Tram::Com_bytes::ACK;
+    }
+    catch(Error & e)
+    {
+        std::cerr<< e.what() <<std::endl;
+
+        t_data.clear();
+        t_data+=(char)Tram::Com_bytes::SOH;
         t_data+=(char)Tram::Com_bytes::NAK;
         t_data+=e.str();
     }
@@ -261,7 +332,7 @@ void process(VCHAR const & r_data,Tram & t_data)
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Capture_Eos_Dslr)
     {
         std::cout <<"(Capture)"<< std::endl;
-        t_data+=(char)Tram::Com_bytes::ACK;
+        _capture(r_data,t_data);
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Download)
     {
@@ -276,7 +347,7 @@ void process(VCHAR const & r_data,Tram & t_data)
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Ls_Files)
     {
         std::cout <<"(Ls_files)"<< std::endl;
-        t_data+=(char)Tram::Com_bytes::ACK;
+        _ls_file(t_data);
     }
     else
     {

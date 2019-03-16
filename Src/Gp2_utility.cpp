@@ -119,6 +119,11 @@ void gp2::Delete_file(std::string const & file,bool debug_mode=false)
     free_cmd("gphoto2 -d "+file,debug_mode);
 }
 
+void gp2::Capture(std::string const & exposure,bool debug_mode=false)
+{
+    free_cmd("gphoto2 --set-config eosremoterelease=5 --wait-event=1s --set-config eosremoterelease=0 --wait-event="+exposure+"s",debug_mode);
+}
+
 void gp2::List_files(gp2::Folder_data & F_data,bool debug_mode=false)
 {
     gp2::Data dvc;

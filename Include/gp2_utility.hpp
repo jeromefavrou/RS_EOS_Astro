@@ -37,6 +37,7 @@ namespace gp2
     void List_files(Folder_data & F_data,bool debug_mode);
     void Auto_detect(Data & device);
     void Delete_file(std::string const & file,bool debug_mode);
+    void Capture(std::string const & exposure,bool debug_mode);
 }
 
 
