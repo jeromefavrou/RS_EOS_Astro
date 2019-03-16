@@ -243,7 +243,7 @@ void _capture(VCHAR const & r_data,Tram & t_data)
     }
 }
 
-void process(VCHAR const & r_data,Tram & t_data)
+void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
 {
     struct gp2::mnt _mnt{"gio mount",""};
     t_data.clear();
@@ -349,6 +349,10 @@ void process(VCHAR const & r_data,Tram & t_data)
         std::cout <<"(Ls_files)"<< std::endl;
         _ls_file(t_data);
     }
+    else if(r_data[1]==(char)Tram::Com_bytes::CS)
+    {
+        serv_b=false;
+    }
     else
     {
         std::cout <<"(non reconnue)"<< std::endl;
@@ -424,8 +428,8 @@ int main(int argc,char ** argv)
         if(e.get_niveau()!=Error::niveau::WARNING)
             return -1;
     }
-
-    while(true)
+    bool ser_b=true;
+    while(ser_b)
     {
         Tram Request;
         Tram Respond;
@@ -464,7 +468,7 @@ int main(int argc,char ** argv)
 
             check_acknowledge(Request.get_c_data());
 
-            process(Request.get_c_data(),Respond);
+            process(Request.get_c_data(),Respond,ser_b);
 
             #ifdef __DEBUG_MODE
                 std::clog << "Tram T: ("<< Respond.size() << " octets) " <<std::hex;
@@ -485,6 +489,8 @@ int main(int argc,char ** argv)
 
         std::this_thread::sleep_for(std::chrono::duration<int,std::milli>(20));
     }
+
+    Server.CloseSocket(Id_Socket);
 
     return 0;
 }

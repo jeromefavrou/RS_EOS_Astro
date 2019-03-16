@@ -27,6 +27,7 @@ class Tram
             static char constexpr NAK=0x15; //Negative Acknowledge
             static char constexpr US= 0x1F; //Unit Separator
             static char constexpr GS= 0x1D; //Group Separator
+            static char constexpr CS= 0x00; //nullprt for close serveur
         };
 
         Tram(void);
