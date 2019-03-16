@@ -1,4 +1,10 @@
-mkdir -vp obj/Release/Src
+wget https://raw.githubusercontent.com/gonzalo/gphoto2-updater/master/gphoto2-updater.sh
+
+chmod +x gphoto2-updater.sh
+
+sudo ./gphoto2-updater.sh
+
+sudo mkdir -vp obj/Release/Src
 
 g++ -Wall -fexceptions -O3 -std=c++14 -IInclude -c Src/main.cpp -o obj/Release/Src/main.o
 
@@ -16,9 +22,9 @@ mkdir -vp bin/Release
 
 g++  -o bin/Release/RS_EOS_Astro obj/Release/Src/main.o obj/Release/Src/Error.o obj/Release/Src/Gp2_utility.o obj/Release/Src/Tram.o obj/Release/Src/Utility.o  -s -lpthread
 
-sudo mkdir -vp /opt/RS_EOS_Astro
+mkdir -vp /opt/RS_EOS_Astro
 
-sudo cp bin/Release/RS_EOS_Astro /opt/RS_EOS_Astro
-sudo cp .mnt_configure /opt/RS_EOS_Astro
-sudo cp .server_configure /opt/RS_EOS_Astro
+cp bin/Release/RS_EOS_Astro /opt/RS_EOS_Astro
+cp .mnt_configure /opt/RS_EOS_Astro
+cp .server_configure /opt/RS_EOS_Astro
 
