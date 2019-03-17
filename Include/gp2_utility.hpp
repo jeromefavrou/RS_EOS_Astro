@@ -38,6 +38,7 @@ namespace gp2
     void Auto_detect(Data & device);
     void Delete_file(std::string const & file,bool debug_mode);
     void Capture(std::string const & exposure,bool debug_mode);
+    void Download_file(std::string const & file,bool debug_mode);
 }
 
 

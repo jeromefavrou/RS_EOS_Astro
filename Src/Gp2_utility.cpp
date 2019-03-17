@@ -108,6 +108,12 @@ void gp2::Auto_detect(gp2::Data & device)
     std::remove(".ck_apn");
 }
 
+void gp2::Download_file(std::string const & file,bool debug_mode=false)
+{
+    free_cmd("gphoto2 -p "+file,debug_mode);
+}
+
+
 void gp2::Delete_file(std::string const & file,bool debug_mode=false)
 {
     gp2::Data dvc;

@@ -1,7 +1,7 @@
-#define __DEBUG_MODE
+//#define __DEBUG_MODE
 
 #define MNT_CONF_PATH ".mnt_configure"
-#define CLIENT_CONF_PATH ".server_configure"
+#define SERVER_CONF_PATH ".server_configure"
 
 #define Id_Socket 0
 
@@ -15,27 +15,29 @@ namespace RC_Apn
     class Com_bytes
 {
 public:
-    static char constexpr Check_Apn=0x3A; //check apn
-    static char constexpr Set_Config=0x3B; //set config
-    static char constexpr Get_Config=0x3C; //get config
-    static char constexpr Capture_Eos_Dslr=0x3D; //capture eos dslr
-    static char constexpr Download=0x3E; //download
-    static char constexpr Delete_File=0x3F; //download and remove
-    static char constexpr Ls_Files=0x40; //download and remove
+	static char constexpr Check_Apn=0x3A; //check apn
+        static char constexpr Set_Config=0x3B; //set config
+        static char constexpr Get_Config=0x3C; //get config
+        static char constexpr Capture_Eos_Dslr=0x3D; //capture eos dslr
+        static char constexpr Download=0x3E; //download
+        static char constexpr Delete_File=0x3F; //download and remove
+        static char constexpr Ls_Files=0x40; //listing file
+        static char constexpr Mk_dir=0x41; //mk_dir
+        static char constexpr Check_Mem=0x41; //check free memory
 
-    static char constexpr Aperture=0x61;
-    static char constexpr Shutterspeed=0x62;
-    static char constexpr Iso=0x63;
-    static char constexpr Format=0x64;
-    static char constexpr Target=0x65;
-    static char constexpr White_balance=0x66;
-    static char constexpr Picture_style=0x67;
-    static char constexpr Older=0x69;
-    static char constexpr Exposure=0x6A;
-    static char constexpr Intervalle=0x6B;
+        static char constexpr Aperture=0x61;
+        static char constexpr Shutterspeed=0x62;
+        static char constexpr Iso=0x63;
+        static char constexpr Format=0x64;
+        static char constexpr Target=0x65;
+        static char constexpr White_balance=0x66;
+        static char constexpr Picture_style=0x67;
+        static char constexpr Older=0x69;
+        static char constexpr Exposure=0x6A;
+        static char constexpr Intervalle=0x6B;
 
-    static char constexpr Debug_mode=0x6C;
-    static char constexpr Tcp_client=0x6D;
+        static char constexpr Debug_mode=0x6C;
+        static char constexpr Tcp_client=0x6D;
 };
 }
 
@@ -243,6 +245,49 @@ void _capture(VCHAR const & r_data,Tram & t_data)
     }
 }
 
+void _download(VCHAR const & r_data,Tram & t_data)
+{
+    try
+    {
+        std::string folder(""),file(""),buff("");
+
+        for(auto i=2;i<r_data.size();i++)
+        {
+            if(r_data[i]==Tram::Com_bytes::EOT)
+                break;
+
+            else if(r_data[i]==Tram::Com_bytes::GS)
+            {
+                folder=buff;
+                buff="";
+                continue;
+            }
+            else if(r_data[i]==Tram::Com_bytes::US)
+            {
+                file=buff;
+                buff="";
+                continue;
+            }
+
+            buff+=r_data[i];
+        }
+
+        gp2::Download_file(folder+"/"+file,false);
+
+        t_data+=(char)Tram::Com_bytes::ACK;
+    }
+    catch(Error & e)
+    {
+        std::cerr<< e.what() <<std::endl;
+
+        t_data.clear();
+        t_data+=(char)Tram::Com_bytes::SOH;
+        t_data+=(char)Tram::Com_bytes::NAK;
+        t_data+=e.str();
+        t_data+=(char)Tram::Com_bytes::EOT;
+    }
+}
+
 void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
 {
     struct gp2::mnt _mnt{"gio mount",""};
@@ -337,7 +382,7 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Download)
     {
         std::cout <<"(Download_file)"<< std::endl;
-        t_data+=(char)Tram::Com_bytes::NAK;
+        _download(r_data,t_data);
     }
     else if(r_data[1]==(char)RC_Apn::Com_bytes::Delete_File)
     {
@@ -364,7 +409,7 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
     t_data+=(char)Tram::Com_bytes::EOT;
 }
 
-void init_configure(struct gp2::mnt & _mount)
+void init_mnt_configure(struct gp2::mnt & _mount)
 {
     std::fstream If(MNT_CONF_PATH,std::ios::in);
 
@@ -373,6 +418,16 @@ void init_configure(struct gp2::mnt & _mount)
 
     std::getline(If,_mount.cmd);
     std::getline(If,_mount.path);
+}
+
+void init_server_configure(uint32_t & port)
+{
+    std::fstream If(SERVER_CONF_PATH,std::ios::in);
+
+    if(!If || If.bad() || If.fail())
+        throw Error(1,"erreur a la lecture de \""+std::string(SERVER_CONF_PATH)+"\"",Error::niveau::WARNING);
+
+    If >> port;
 }
 
 int main(int argc,char ** argv)
@@ -389,7 +444,7 @@ int main(int argc,char ** argv)
         else
             throw Error(1,"les commandes system ne peuvent etre utilise",Error::niveau::FATAL_ERROR);
 
-        init_configure(_mount);
+        init_mnt_configure(_mount);
     }
     catch(Error & e)
     {
@@ -406,19 +461,33 @@ int main(int argc,char ** argv)
         #endif // WIN32
     }
 
+    uint32_t port;
+    try
+    {
+        init_server_configure(port);
+    }
+    catch(Error & e)
+    {
+        std::cerr << e.what() << std::endl;
+
+        if(e.get_niveau()==Error::niveau::FATAL_ERROR)
+            return -1;
+
+        port=6789;
+    }
     try
     {
         Server.NewSocket(Id_Socket);
-        Server.BindServeur(Id_Socket,INADDR_ANY,6789);
+        Server.BindServeur(Id_Socket,INADDR_ANY,port);
         Server.Listen(Id_Socket,1);
 
-        #ifdef __DEBUG_MODE
-            std::clog << "en attente de client" << std::endl;
-        #endif // __DEBUG_MODE
+
+        std::clog << "en attente de client" << std::endl;
+
         Server.AcceptClient(Id_Socket,0);
-        #ifdef __DEBUG_MODE
-            std::clog << "client connecté" << std::endl;
-        #endif // __DEBUG_MODE
+
+        std::clog << "client connecté" << std::endl;
+
         as_client=true;
     }
     catch(Error & e)
@@ -444,15 +513,12 @@ int main(int argc,char ** argv)
             if(e.get_niveau()==Error::niveau::FATAL_ERROR)
                 return -1;
 
-            #ifdef __DEBUG_MODE
-                std::clog << "attente de reconnexion du client" << std::endl;
-            #endif // __DEBUG_MODE
+
+            std::clog << "attente de reconnexion du client" << std::endl;
 
             Server.AcceptClient(Id_Socket,0);
 
-            #ifdef __DEBUG_MODE
-                std::clog << "client reconnecté" << std::endl;
-            #endif // __DEBUG_MODE
+            std::clog << "client reconnecté" << std::endl;
 
             continue;
         }
