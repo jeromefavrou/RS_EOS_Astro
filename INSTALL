@@ -28,3 +28,6 @@ cp bin/Release/RS_EOS_Astro /opt/RS_EOS_Astro
 cp .mnt_configure /opt/RS_EOS_Astro
 cp .server_configure /opt/RS_EOS_Astro
 
+chmod +x /opt/RS_EOS_Astro/.mnt_configure
+chmod +x /opt/RS_EOS_Astro/.server_configure
+

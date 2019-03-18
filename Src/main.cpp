@@ -1,4 +1,4 @@
-//#define __DEBUG_MODE
+#define __DEBUG_MODE
 
 #define MNT_CONF_PATH ".mnt_configure"
 #define SERVER_CONF_PATH ".server_configure"
@@ -13,32 +13,32 @@
 namespace RC_Apn
 {
     class Com_bytes
-{
-public:
-	static char constexpr Check_Apn=0x3A; //check apn
-        static char constexpr Set_Config=0x3B; //set config
-        static char constexpr Get_Config=0x3C; //get config
-        static char constexpr Capture_Eos_Dslr=0x3D; //capture eos dslr
-        static char constexpr Download=0x3E; //download
-        static char constexpr Delete_File=0x3F; //download and remove
-        static char constexpr Ls_Files=0x40; //listing file
-        static char constexpr Mk_dir=0x41; //mk_dir
-        static char constexpr Check_Mem=0x41; //check free memory
+    {
+    public:
+            static char constexpr Check_Apn=0x3A; //check apn
+            static char constexpr Set_Config=0x3B; //set config
+            static char constexpr Get_Config=0x3C; //get config
+            static char constexpr Capture_Eos_Dslr=0x3D; //capture eos dslr
+            static char constexpr Download=0x3E; //download
+            static char constexpr Delete_File=0x3F; //download and remove
+            static char constexpr Ls_Files=0x40; //listing file
+            static char constexpr Mk_dir=0x41; //mk_dir
+            static char constexpr Check_Mem=0x42; //check free memory
 
-        static char constexpr Aperture=0x61;
-        static char constexpr Shutterspeed=0x62;
-        static char constexpr Iso=0x63;
-        static char constexpr Format=0x64;
-        static char constexpr Target=0x65;
-        static char constexpr White_balance=0x66;
-        static char constexpr Picture_style=0x67;
-        static char constexpr Older=0x69;
-        static char constexpr Exposure=0x6A;
-        static char constexpr Intervalle=0x6B;
+            static char constexpr Aperture=0x61;
+            static char constexpr Shutterspeed=0x62;
+            static char constexpr Iso=0x63;
+            static char constexpr Format=0x64;
+            static char constexpr Target=0x65;
+            static char constexpr White_balance=0x66;
+            static char constexpr Picture_style=0x67;
+            static char constexpr Older=0x68;
+            static char constexpr Exposure=0x69;
+            static char constexpr Intervalle=0x6A;
 
-        static char constexpr Debug_mode=0x6C;
-        static char constexpr Tcp_client=0x6D;
-};
+            static char constexpr Debug_mode=0x6B;
+            static char constexpr Tcp_client=0x6C;
+    };
 }
 
 
@@ -94,198 +94,146 @@ void check_acknowledge(VCHAR const & rep_tram)
 
     throw Error(9,"Erreur inconnue du avec le serveur: ",Error::niveau::ERROR);
 }
+
 void _get_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data,gp2::Data & gc)
 {
     std::cout <<"(get_config)["+gp2::Conf_param_to_str(cp)+"]"<< std::endl;
-    try
+
+    gp2::Get_config(cp,gc);
+
+    t_data+=(char)Tram::Com_bytes::ACK;
+
+    for(auto & i :gc)
     {
-        gp2::Get_config(cp,gc);
-
-        t_data+=(char)Tram::Com_bytes::ACK;
-
-        for(auto & i :gc)
-        {
-            t_data+=i;
-            t_data+=(char)Tram::Com_bytes::US;
-        }
-    }
-    catch(Error & e)
-    {
-        std::cerr<< e.what() <<std::endl;
-
-        t_data.clear();
-        t_data+=(char)Tram::Com_bytes::SOH;
-        t_data+=(char)Tram::Com_bytes::NAK;
-        t_data+=e.str();
+        t_data+=i;
+        t_data+=(char)Tram::Com_bytes::US;
     }
 }
 
 void _set_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data)
 {
     std::cout <<"(set_config)["+gp2::Conf_param_to_str(cp)+"]"<< std::endl;
-    try
+
+    std::string value("");
+
+    for(auto i=3;i<r_data.size();i++)
     {
-        std::string value("");
+        if(r_data[i]==Tram::Com_bytes::EOT)
+            break;
 
-        for(auto i=3;i<r_data.size();i++)
-        {
-            if(r_data[i]==Tram::Com_bytes::EOT)
-            {
-                gp2::Set_config(cp,value,false);
-                break;
-            }
-
-            value+=(char)r_data[i];
-        }
-
-        t_data+=(char)Tram::Com_bytes::ACK;
+        value+=(char)r_data[i];
     }
-    catch(Error & e)
-    {
-        std::cerr<< e.what() <<std::endl;
 
-        t_data.clear();
-        t_data+=(char)Tram::Com_bytes::SOH;
-        t_data+=(char)Tram::Com_bytes::NAK;
-        t_data+=e.str();
-    }
+    gp2::Set_config(cp,value,false);
+
+    t_data+=(char)Tram::Com_bytes::ACK;
 }
 
 void _remove(VCHAR const & r_data,Tram & t_data)
 {
-    try
+    std::string value("");
+
+    for(auto i=2;i<r_data.size();i++)
     {
-        std::string value("");
+        if(r_data[i]==Tram::Com_bytes::EOT)
+            break;
 
-        for(auto i=2;i<r_data.size();i++)
-        {
-            if(r_data[i]==Tram::Com_bytes::EOT)
-                break;
-
-            value+=(char)r_data[i];
-        }
-
-        gp2::Delete_file(value,false);
-
-        t_data+=(char)Tram::Com_bytes::ACK;
+        value+=(char)r_data[i];
     }
-    catch(Error & e)
-    {
-        std::cerr<< e.what() <<std::endl;
 
-        t_data.clear();
-        t_data+=(char)Tram::Com_bytes::SOH;
-        t_data+=(char)Tram::Com_bytes::NAK;
-        t_data+=e.str();
-    }
+    gp2::Delete_file(value,false);
+
+    t_data+=(char)Tram::Com_bytes::ACK;
 }
 
 void _ls_file(Tram & t_data)
 {
-    try
+    gp2::Folder_data fd;
+    gp2::List_files(fd,true);
+
+    t_data+=(char)Tram::Com_bytes::ACK;
+
+    for(auto file=fd.begin();file!=fd.end();file++)
     {
-        gp2::Folder_data fd;
-        gp2::List_files(fd,true);
 
-        t_data+=(char)Tram::Com_bytes::ACK;
+        t_data+=std::string(file->first);
+        t_data+=(char)Tram::Com_bytes::GS;
 
-        for(auto file=fd.begin();file!=fd.end();file++)
+        for(auto name=file->second.begin();name!=file->second.end();name++)
         {
+            t_data+=std::string(*name);
 
-            t_data+=std::string(file->first);
-            t_data+=(char)Tram::Com_bytes::GS;
-
-            for(auto name=file->second.begin();name!=file->second.end();name++)
-            {
-                t_data+=std::string(*name);
-
-                t_data+=(char)Tram::Com_bytes::US;
-            }
+            t_data+=(char)Tram::Com_bytes::US;
         }
-    }
-    catch(Error & e)
-    {
-        std::cerr<< e.what() <<std::endl;
-
-        t_data.clear();
-        t_data+=(char)Tram::Com_bytes::SOH;
-        t_data+=(char)Tram::Com_bytes::NAK;
-        t_data+=e.str();
     }
 }
 
 void _capture(VCHAR const & r_data,Tram & t_data)
 {
-    try
+    std::string exposure("");
+
+    for(auto i=2;i<r_data.size();i++)
     {
-        std::string exposure("");
-
-        for(auto i=2;i<r_data.size();i++)
-        {
-            if(r_data[i]==(char)Tram::Com_bytes::EOT)
-                break;
-            else if(r_data[i]==(char)Tram::Com_bytes::US)
-                break;
-
-            exposure+=r_data[i];
-        }
-
-        gp2::Capture(exposure,false);
-
-        t_data+=(char)Tram::Com_bytes::ACK;
+        if(r_data[i]==(char)Tram::Com_bytes::EOT)
+            break;
+        exposure+=r_data[i];
     }
-    catch(Error & e)
-    {
-        std::cerr<< e.what() <<std::endl;
 
-        t_data.clear();
-        t_data+=(char)Tram::Com_bytes::SOH;
-        t_data+=(char)Tram::Com_bytes::NAK;
-        t_data+=e.str();
-    }
+    gp2::Capture(exposure,false);
+
+    t_data+=(char)Tram::Com_bytes::ACK;
 }
 
 void _download(VCHAR const & r_data,Tram & t_data)
 {
-    try
+    std::vector<std::string> parser;
+    std::string buff("");
+
+    for(auto i=2;i<r_data.size();i++)
     {
-        std::string folder(""),file(""),buff("");
+        if(r_data[i]==Tram::Com_bytes::EOT)
+            break;
 
-        for(auto i=2;i<r_data.size();i++)
+        else if(r_data[i]==Tram::Com_bytes::US)
         {
-            if(r_data[i]==Tram::Com_bytes::EOT)
-                break;
-
-            else if(r_data[i]==Tram::Com_bytes::GS)
-            {
-                folder=buff;
-                buff="";
-                continue;
-            }
-            else if(r_data[i]==Tram::Com_bytes::US)
-            {
-                file=buff;
-                buff="";
-                continue;
-            }
-
-            buff+=r_data[i];
+            parser.push_back(buff);
+            buff="";
+            continue;
         }
 
-        gp2::Download_file(folder+"/"+file,false);
-
-        t_data+=(char)Tram::Com_bytes::ACK;
+        buff+=r_data[i];
     }
-    catch(Error & e)
+
+    if(parser.size()!=3)
+        throw Error(16,"nombre de parametres pour download != 3",Error::niveau::ERROR);
+
+    gp2::Download_file(parser[0]+"/"+parser[1],false);
+
+    free_cmd("mv "+parser[1]+" "+parser[2],false);
+
+    t_data+=(char)Tram::Com_bytes::ACK;
+}
+
+void _Mk_dir(VCHAR const & r_data,Tram & t_data)
+{
+    std::string parser("");
+
+    for(auto i=2;i<r_data.size();i++)
     {
-        std::cerr<< e.what() <<std::endl;
+        if(r_data[i]==Tram::Com_bytes::EOT)
+            break;
 
-        t_data.clear();
-        t_data+=(char)Tram::Com_bytes::SOH;
-        t_data+=(char)Tram::Com_bytes::NAK;
-        t_data+=e.str();
-        t_data+=(char)Tram::Com_bytes::EOT;
+        parser+=r_data[i];
     }
+
+    free_cmd("mkdir -vp "+parser,false);
+
+    t_data+=(char)Tram::Com_bytes::ACK;
+}
+
+void _Check_mem(Tram & t_data)
+{
+    t_data+=(char)Tram::Com_bytes::ACK;
 }
 
 void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
@@ -294,116 +242,136 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
     t_data.clear();
     t_data+=(char)Tram::Com_bytes::SOH;
 
-    if(r_data[1]==(char)RC_Apn::Com_bytes::Check_Apn)
+    try
     {
-        std::cout <<"(check apn)"<< std::endl;
-        gp2::Data device;
-        gp2::Auto_detect(device);
-
-        if(device.size()>0)
+        if(r_data[1]==(char)RC_Apn::Com_bytes::Check_Apn)
         {
+            std::cout <<"(check apn)"<< std::endl;
+            gp2::Data device;
+            gp2::Auto_detect(device);
+
+            if(device.size()>0)
+            {
+                t_data+=(char)Tram::Com_bytes::ACK;
+                gp2::Unmount(_mnt);
+            }
+            else
+            {
+                t_data+=(char)Tram::Com_bytes::NAK;
+                t_data+="aucun apn detecté";
+            }
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Older)
+        {
+            std::cout <<"(Older)"<< std::endl;
             t_data+=(char)Tram::Com_bytes::ACK;
-            gp2::Unmount(_mnt);
         }
-        else
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Debug_mode)
         {
-            t_data+=(char)Tram::Com_bytes::NAK;
-            t_data+="aucun apn detecté";
+            std::cout <<"(Debug_mode)"<< std::endl;
+            t_data+=(char)Tram::Com_bytes::ACK;
         }
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Older)
-    {
-        std::cout <<"(Older)"<< std::endl;
-        t_data+=(char)Tram::Com_bytes::ACK;
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Debug_mode)
-    {
-        std::cout <<"(Debug_mode)"<< std::endl;
-        t_data+=(char)Tram::Com_bytes::ACK;
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Tcp_client)
-    {
-        std::cout <<"(Tcp_client)"<< std::endl;
-        t_data+=(char)Tram::Com_bytes::ACK;
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Get_Config)//simplifiable par une fonction parsé
-    {
-        gp2::Data gc;
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Tcp_client)
+        {
+            std::cout <<"(Tcp_client)"<< std::endl;
+            t_data+=(char)Tram::Com_bytes::ACK;
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Get_Config)//simplifiable par une fonction parsé
+        {
+            gp2::Data gc;
 
-        if(r_data[2]==RC_Apn::Com_bytes::Aperture)
-            _get_conf(gp2::Conf_param::APERTURE,r_data,t_data,gc);
-        else if(r_data[2]==RC_Apn::Com_bytes::Shutterspeed)
-            _get_conf(gp2::Conf_param::SHUTTERSPEED,r_data,t_data,gc);
-        else if(r_data[2]==RC_Apn::Com_bytes::Iso)
-            _get_conf(gp2::Conf_param::ISO,r_data,t_data,gc);
-        else if(r_data[2]==RC_Apn::Com_bytes::Format)
-            _get_conf(gp2::Conf_param::FORMAT,r_data,t_data,gc);
-        else if(r_data[2]==RC_Apn::Com_bytes::Target)
-            _get_conf(gp2::Conf_param::TARGET,r_data,t_data,gc);
-        else if(r_data[2]==RC_Apn::Com_bytes::White_balance)
-            _get_conf(gp2::Conf_param::WHITE_BALANCE,r_data,t_data,gc);
-        else if(r_data[2]==RC_Apn::Com_bytes::Picture_style)
-            _get_conf(gp2::Conf_param::PICTURE_STYLE,r_data,t_data,gc);
+            if(r_data[2]==RC_Apn::Com_bytes::Aperture)
+                _get_conf(gp2::Conf_param::APERTURE,r_data,t_data,gc);
+            else if(r_data[2]==RC_Apn::Com_bytes::Shutterspeed)
+                _get_conf(gp2::Conf_param::SHUTTERSPEED,r_data,t_data,gc);
+            else if(r_data[2]==RC_Apn::Com_bytes::Iso)
+                _get_conf(gp2::Conf_param::ISO,r_data,t_data,gc);
+            else if(r_data[2]==RC_Apn::Com_bytes::Format)
+                _get_conf(gp2::Conf_param::FORMAT,r_data,t_data,gc);
+            else if(r_data[2]==RC_Apn::Com_bytes::Target)
+                _get_conf(gp2::Conf_param::TARGET,r_data,t_data,gc);
+            else if(r_data[2]==RC_Apn::Com_bytes::White_balance)
+                _get_conf(gp2::Conf_param::WHITE_BALANCE,r_data,t_data,gc);
+            else if(r_data[2]==RC_Apn::Com_bytes::Picture_style)
+                _get_conf(gp2::Conf_param::PICTURE_STYLE,r_data,t_data,gc);
+            else
+            {
+                t_data+=(char)Tram::Com_bytes::NAK;
+                t_data+="demande de Get_Config inconnue: ";
+                t_data+=r_data[2];
+            }
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Set_Config)
+        {
+            if(r_data[2]==(char)RC_Apn::Com_bytes::Aperture)
+                _set_conf(gp2::Conf_param::APERTURE,r_data,t_data);
+            else if(r_data[2]==RC_Apn::Com_bytes::Shutterspeed)
+                _set_conf(gp2::Conf_param::SHUTTERSPEED,r_data,t_data);
+            else if(r_data[2]==RC_Apn::Com_bytes::Iso)
+                _set_conf(gp2::Conf_param::ISO,r_data,t_data);
+            else if(r_data[2]==RC_Apn::Com_bytes::Format)
+                _set_conf(gp2::Conf_param::FORMAT,r_data,t_data);
+            else if(r_data[2]==RC_Apn::Com_bytes::Target)
+                _set_conf(gp2::Conf_param::TARGET,r_data,t_data);
+            else if(r_data[2]==RC_Apn::Com_bytes::White_balance)
+                _set_conf(gp2::Conf_param::WHITE_BALANCE,r_data,t_data);
+            else if(r_data[2]==RC_Apn::Com_bytes::Picture_style)
+                _set_conf(gp2::Conf_param::PICTURE_STYLE,r_data,t_data);
+            else
+            {
+                t_data+=(char)Tram::Com_bytes::NAK;
+                t_data+="demande de Set_Config inconnue: ";
+                t_data+=r_data[2];
+            }
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Capture_Eos_Dslr)
+        {
+            std::cout <<"(Capture)"<< std::endl;
+            _capture(r_data,t_data);
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Download)
+        {
+            std::cout <<"(Download_file)"<< std::endl;
+            _download(r_data,t_data);
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Delete_File)
+        {
+            std::cout <<"(Delete_file)"<< std::endl;
+            _remove(r_data,t_data);
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Ls_Files)
+        {
+            std::cout <<"(Ls_files)"<< std::endl;
+            _ls_file(t_data);
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Check_Mem)
+        {
+            std::cout <<"(Ls_files)"<< std::endl;
+            _Check_mem(t_data);
+        }
+        else if(r_data[1]==(char)RC_Apn::Com_bytes::Mk_dir)
+        {
+            std::cout <<"(Ls_files)"<< std::endl;
+            _Mk_dir(r_data,t_data);
+        }
+        else if(r_data[1]==(char)Tram::Com_bytes::CS)
+        {
+            serv_b=false;
+        }
         else
         {
-            t_data+=(char)Tram::Com_bytes::NAK;
-            t_data+="demande de Get_Config inconnue: ";
-            t_data+=r_data[2];
+            std::cout <<"(non reconnue)"<< std::endl;
+            throw Error(16,"commande inconnue: "+r_data[1],Error::niveau::ERROR);
         }
     }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Set_Config)
+    catch(Error & e)
     {
-        if(r_data[2]==(char)RC_Apn::Com_bytes::Aperture)
-            _set_conf(gp2::Conf_param::APERTURE,r_data,t_data);
-        else if(r_data[2]==RC_Apn::Com_bytes::Shutterspeed)
-            _set_conf(gp2::Conf_param::SHUTTERSPEED,r_data,t_data);
-        else if(r_data[2]==RC_Apn::Com_bytes::Iso)
-            _set_conf(gp2::Conf_param::ISO,r_data,t_data);
-        else if(r_data[2]==RC_Apn::Com_bytes::Format)
-            _set_conf(gp2::Conf_param::FORMAT,r_data,t_data);
-        else if(r_data[2]==RC_Apn::Com_bytes::Target)
-            _set_conf(gp2::Conf_param::TARGET,r_data,t_data);
-        else if(r_data[2]==RC_Apn::Com_bytes::White_balance)
-            _set_conf(gp2::Conf_param::WHITE_BALANCE,r_data,t_data);
-        else if(r_data[2]==RC_Apn::Com_bytes::Picture_style)
-            _set_conf(gp2::Conf_param::PICTURE_STYLE,r_data,t_data);
-        else
-        {
-            t_data+=(char)Tram::Com_bytes::NAK;
-            t_data+="demande de Set_Config inconnue: ";
-            t_data+=r_data[2];
-        }
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Capture_Eos_Dslr)
-    {
-        std::cout <<"(Capture)"<< std::endl;
-        _capture(r_data,t_data);
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Download)
-    {
-        std::cout <<"(Download_file)"<< std::endl;
-        _download(r_data,t_data);
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Delete_File)
-    {
-        std::cout <<"(Delete_file)"<< std::endl;
-        _remove(r_data,t_data);
-    }
-    else if(r_data[1]==(char)RC_Apn::Com_bytes::Ls_Files)
-    {
-        std::cout <<"(Ls_files)"<< std::endl;
-        _ls_file(t_data);
-    }
-    else if(r_data[1]==(char)Tram::Com_bytes::CS)
-    {
-        serv_b=false;
-    }
-    else
-    {
-        std::cout <<"(non reconnue)"<< std::endl;
+        std::cerr<< e.what() <<std::endl;
+
+        t_data.clear();
+        t_data+=(char)Tram::Com_bytes::SOH;
         t_data+=(char)Tram::Com_bytes::NAK;
-        t_data+="commande inconnue: ";
-        t_data+=r_data[1];
+        t_data+=e.str();
     }
 
     t_data+=(char)Tram::Com_bytes::EOT;
