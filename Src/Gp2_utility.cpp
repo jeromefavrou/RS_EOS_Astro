@@ -52,7 +52,7 @@ void gp2::Get_config(gp2::Conf_param const & param,gp2::Data & gc)
     gp2::Auto_detect(dvc);
 
     if(dvc.size()==0)
-        throw gp2::Erreur(1,"lecture config impossible aucun materiel detecté",gp2::Erreur::ERROR);
+        throw gp2::Erreur(2,"lecture config impossible aucun materiel detecté",gp2::Erreur::ERROR);
 
     gc.clear();
 
@@ -81,7 +81,7 @@ void gp2::Set_config(gp2::Conf_param const & param,std::string value,bool debug_
     gp2::Auto_detect(dvc);
 
     if(dvc.size()==0)
-        throw gp2::Erreur(1,"config impossible aucun materiel detecté",gp2::Erreur::ERROR);
+        throw gp2::Erreur(3,"config impossible aucun materiel detecté",gp2::Erreur::ERROR);
 
     free_cmd("gphoto2 --set-config "+gp2::Conf_param_to_str(param)+"="+value,debug_mode);
 }
@@ -94,7 +94,7 @@ void gp2::Auto_detect(gp2::Data & device)
     std::fstream If(".ck_apn",std::ios::in);
 
     if(!If || If.bad() || If.fail())
-        throw gp2::Erreur(3,"probleme de lecture des apareils connecte",gp2::Erreur::ERROR);
+        throw gp2::Erreur(4,"probleme de lecture des apareils connecte",gp2::Erreur::ERROR);
 
     device.clear();
     std::string buff;
@@ -120,7 +120,7 @@ void gp2::Delete_file(std::string const & file,bool debug_mode=false)
     gp2::Auto_detect(dvc);
 
     if(dvc.size()==0)
-        throw gp2::Erreur(1,"config impossible aucun materiel detecté",gp2::Erreur::ERROR);
+        throw gp2::Erreur(5,"config impossible aucun materiel detecté",gp2::Erreur::ERROR);
 
     free_cmd("gphoto2 -d "+file,debug_mode);
 }
@@ -136,7 +136,7 @@ void gp2::List_files(gp2::Folder_data & F_data,bool debug_mode=false)
     gp2::Auto_detect(dvc);
 
     if(dvc.size()==0)
-        throw gp2::Erreur(1,"config impossible aucun materiel detecté",gp2::Erreur::ERROR);
+        throw gp2::Erreur(6,"config impossible aucun materiel detecté",gp2::Erreur::ERROR);
 
     free_cmd("gphoto2 --list-files > .ls_files_buffer",debug_mode);
 
@@ -145,7 +145,7 @@ void gp2::List_files(gp2::Folder_data & F_data,bool debug_mode=false)
     std::fstream If(".ls_files_buffer",std::ios::in);
 
     if(!If || If.bad() || If.fail())
-        throw gp2::Erreur(4,"probleme de lecture fichier du materiel",gp2::Erreur::ERROR);
+        throw gp2::Erreur(7,"probleme de lecture fichier du materiel",gp2::Erreur::ERROR);
 
     std::string line("");
     std::string last_path("");

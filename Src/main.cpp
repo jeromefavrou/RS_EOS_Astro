@@ -1,7 +1,9 @@
-#define __DEBUG_MODE
+//#define __DEBUG_MODE
 
 #define MNT_CONF_PATH ".mnt_configure"
 #define SERVER_CONF_PATH ".server_configure"
+
+#define DEFAULT_PORT 6789
 
 #define Id_Socket 0
 
@@ -23,7 +25,6 @@ namespace RC_Apn
             static char constexpr Delete_File=0x3F; //download and remove
             static char constexpr Ls_Files=0x40; //listing file
             static char constexpr Mk_dir=0x41; //mk_dir
-            static char constexpr Check_Mem=0x42; //check free memory
 
             static char constexpr Aperture=0x61;
             static char constexpr Shutterspeed=0x62;
@@ -41,13 +42,184 @@ namespace RC_Apn
     };
 }
 
+Tram Read_Tram(char const ending_byte,CSocketTCPServeur & Server,int id_server);
 
-Tram Read_Tram(char const ending_byte,CSocketTCPServeur & Server,int id_server,int const _time_out)
+void check_acknowledge(VCHAR const & rep_tram);
+
+void _get_conf(gp2::Conf_param const& cp,Tram & t_data,gp2::Data & gc);
+
+void _set_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data);
+
+void _remove(VCHAR const & r_data,Tram & t_data);
+
+void _ls_file(Tram & t_data);
+
+void _capture(VCHAR const & r_data,Tram & t_data);
+
+void _download(VCHAR const & r_data,Tram & t_data);
+
+void _Mk_dir(VCHAR const & r_data,Tram & t_data);
+
+void process(VCHAR const & r_data,Tram & t_data,bool & serv_b);
+
+void init_mnt_configure(struct gp2::mnt & _mount);
+
+void init_server_configure(uint32_t & port);
+
+int main()
+{
+    struct gp2::mnt _mount;
+
+    CSocketTCPServeur Server;
+
+    try
+    {
+        if(system(nullptr));
+        else
+            throw Error(7,"les commandes system ne peuvent etre utilise",Error::niveau::FATAL_ERROR);
+
+        init_mnt_configure(_mount);
+    }
+    catch(Error & e)
+    {
+        std::cerr << e.what() << std::endl;
+
+        if(e.get_niveau()==Error::niveau::FATAL_ERROR)
+            return -1;
+
+        #ifndef WIN32
+        _mount.cmd=DEFAULT_MNT_CMD;
+        _mount.path=DEFAULT_MNT_FOLDER;
+        #elif
+        return -1;
+        #endif // WIN32
+
+        std::fstream Of(MNT_CONF_PATH,std::ios::out);
+
+        Of << DEFAULT_MNT_CMD << std::endl;
+        Of << DEFAULT_MNT_FOLDER;
+
+        Of.close();
+    }
+
+    uint32_t port;
+    try
+    {
+        init_server_configure(port);
+    }
+    catch(Error & e)
+    {
+        std::cerr << e.what() << std::endl;
+
+        if(e.get_niveau()==Error::niveau::FATAL_ERROR)
+            return -1;
+
+        port=DEFAULT_PORT;
+
+        std::fstream Of(SERVER_CONF_PATH,std::ios::out);
+
+        Of << DEFAULT_PORT;
+
+        Of.close();
+
+    }
+    try
+    {
+        Server.NewSocket(Id_Socket);
+        Server.BindServeur(Id_Socket,INADDR_ANY,port);
+        Server.Listen(Id_Socket,1);
+
+
+        std::cout << "en attente de client" << std::endl;
+
+        Server.AcceptClient(Id_Socket,0);
+
+        std::clog << "client connecté" << std::endl;
+    }
+    catch(Error & e)
+    {
+        std::cerr << e.what() << std::endl;
+
+        if(e.get_niveau()!=Error::niveau::WARNING)
+            return -1;
+    }
+
+    bool ser_b=true;
+    while(ser_b)
+    {
+        Tram Request;
+        Tram Respond;
+        try
+        {
+            Request=Read_Tram(Tram::Com_bytes::EOT,Server,Id_Socket);
+        }
+        catch(Error & e)
+        {
+            std::cerr << e.what() << std::endl;
+
+            if(e.get_niveau()==Error::niveau::FATAL_ERROR)
+            {
+                Server.CloseSocket(Id_Socket);
+                return -1;
+            }
+
+            std::clog << "attente de reconnexion du client" << std::endl;
+
+            Server.AcceptClient(Id_Socket,0);
+
+            std::clog << "client reconnecté" << std::endl;
+
+            continue;
+        }
+
+        try
+        {
+            #ifdef __DEBUG_MODE
+                 std::clog << "Tram R: ("<< Request.size() << " octets) " <<std::hex;
+                for(auto & i:Request.get_data())
+                    std::clog <<"0x"<< static_cast<int>(i) << " ";
+                std::clog  << std::dec << std::endl;
+            #endif // __DEBUG_MODE
+
+            check_acknowledge(Request.get_c_data());
+
+            process(Request.get_c_data(),Respond,ser_b);
+
+            #ifdef __DEBUG_MODE
+                std::clog << "Tram T: ("<< Respond.size() << " octets) " <<std::hex;
+                for(auto & i:Respond.get_data())
+                    std::clog <<"0x"<< static_cast<int>(i) << " ";
+                std::clog  << std::dec << std::endl<< std::endl;
+            #endif // __DEBUG_MODE
+
+            Server.Write(Id_Socket,Respond.get_c_data());
+        }
+        catch(Error & e)
+        {
+            std::cerr << e.what() << std::endl;
+
+            if(e.get_niveau()==Error::niveau::FATAL_ERROR)
+            {
+                Server.CloseSocket(Id_Socket);
+                return -1;
+            }
+
+        }
+
+        std::this_thread::sleep_for(std::chrono::duration<int,std::milli>(50));
+    }
+
+    Server.CloseSocket(Id_Socket);
+
+    return 0;
+}
+
+Tram Read_Tram(char const ending_byte,CSocketTCPServeur & Server,int id_server)
 {
     Tram data;
 
     bool Do=true;
-
+    short int nb_tent=0;
 
     while(Do)
     {
@@ -55,8 +227,13 @@ Tram Read_Tram(char const ending_byte,CSocketTCPServeur & Server,int id_server,i
 
         Server.Read<2048>(id_server,tps);
 
+        nb_tent++;
+
         if(tps.size()<=0)
-            throw Error(1,"client deconnecté",Error::niveau::WARNING);
+            throw Error(0,"client deconnecté",Error::niveau::WARNING);
+
+        if(nb_tent>=5)
+            throw Error(1,"le client n'est pas compris par le server",Error::niveau::ERROR);
 
         data+=tps;
 
@@ -84,18 +261,18 @@ void check_acknowledge(VCHAR const & rep_tram)
                     er+=t;
                 }
 
-                throw Error(5,"erreur du serveur: "+er,Error::niveau::WARNING);
+                throw Error(2,"erreur du serveur: "+er,Error::niveau::WARNING);
             }
             else
                 return ;
         }
         else
-            throw Error(7,"header et footer tram non respecté par le serveur: ",Error::niveau::ERROR);
+            throw Error(3,"header et footer tram non respecté par le serveur: ",Error::niveau::ERROR);
 
-    throw Error(9,"Erreur inconnue du avec le serveur: ",Error::niveau::ERROR);
+    throw Error(4,"Erreur inconnue du avec le serveur: ",Error::niveau::ERROR);
 }
 
-void _get_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data,gp2::Data & gc)
+void _get_conf(gp2::Conf_param const& cp,Tram & t_data,gp2::Data & gc)
 {
     std::cout <<"(get_config)["+gp2::Conf_param_to_str(cp)+"]"<< std::endl;
 
@@ -116,7 +293,7 @@ void _set_conf(gp2::Conf_param const& cp,VCHAR const & r_data,Tram & t_data)
 
     std::string value("");
 
-    for(auto i=3;i<r_data.size();i++)
+    for(auto i=3u;i<r_data.size();i++)
     {
         if(r_data[i]==Tram::Com_bytes::EOT)
             break;
@@ -133,7 +310,7 @@ void _remove(VCHAR const & r_data,Tram & t_data)
 {
     std::string value("");
 
-    for(auto i=2;i<r_data.size();i++)
+    for(auto i=2u;i<r_data.size();i++)
     {
         if(r_data[i]==Tram::Com_bytes::EOT)
             break;
@@ -172,7 +349,7 @@ void _capture(VCHAR const & r_data,Tram & t_data)
 {
     std::string exposure("");
 
-    for(auto i=2;i<r_data.size();i++)
+    for(auto i=2u;i<r_data.size();i++)
     {
         if(r_data[i]==(char)Tram::Com_bytes::EOT)
             break;
@@ -189,7 +366,7 @@ void _download(VCHAR const & r_data,Tram & t_data)
     std::vector<std::string> parser;
     std::string buff("");
 
-    for(auto i=2;i<r_data.size();i++)
+    for(auto i=2u;i<r_data.size();i++)
     {
         if(r_data[i]==Tram::Com_bytes::EOT)
             break;
@@ -205,7 +382,7 @@ void _download(VCHAR const & r_data,Tram & t_data)
     }
 
     if(parser.size()!=3)
-        throw Error(16,"nombre de parametres pour download != 3",Error::niveau::ERROR);
+        throw Error(5,"nombre de parametres pour download != 3",Error::niveau::ERROR);
 
     gp2::Download_file(parser[0]+"/"+parser[1],false);
 
@@ -218,7 +395,7 @@ void _Mk_dir(VCHAR const & r_data,Tram & t_data)
 {
     std::string parser("");
 
-    for(auto i=2;i<r_data.size();i++)
+    for(auto i=2u;i<r_data.size();i++)
     {
         if(r_data[i]==Tram::Com_bytes::EOT)
             break;
@@ -228,11 +405,6 @@ void _Mk_dir(VCHAR const & r_data,Tram & t_data)
 
     free_cmd("mkdir -vp "+parser,false);
 
-    t_data+=(char)Tram::Com_bytes::ACK;
-}
-
-void _Check_mem(Tram & t_data)
-{
     t_data+=(char)Tram::Com_bytes::ACK;
 }
 
@@ -281,19 +453,19 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
             gp2::Data gc;
 
             if(r_data[2]==RC_Apn::Com_bytes::Aperture)
-                _get_conf(gp2::Conf_param::APERTURE,r_data,t_data,gc);
+                _get_conf(gp2::Conf_param::APERTURE,t_data,gc);
             else if(r_data[2]==RC_Apn::Com_bytes::Shutterspeed)
-                _get_conf(gp2::Conf_param::SHUTTERSPEED,r_data,t_data,gc);
+                _get_conf(gp2::Conf_param::SHUTTERSPEED,t_data,gc);
             else if(r_data[2]==RC_Apn::Com_bytes::Iso)
-                _get_conf(gp2::Conf_param::ISO,r_data,t_data,gc);
+                _get_conf(gp2::Conf_param::ISO,t_data,gc);
             else if(r_data[2]==RC_Apn::Com_bytes::Format)
-                _get_conf(gp2::Conf_param::FORMAT,r_data,t_data,gc);
+                _get_conf(gp2::Conf_param::FORMAT,t_data,gc);
             else if(r_data[2]==RC_Apn::Com_bytes::Target)
-                _get_conf(gp2::Conf_param::TARGET,r_data,t_data,gc);
+                _get_conf(gp2::Conf_param::TARGET,t_data,gc);
             else if(r_data[2]==RC_Apn::Com_bytes::White_balance)
-                _get_conf(gp2::Conf_param::WHITE_BALANCE,r_data,t_data,gc);
+                _get_conf(gp2::Conf_param::WHITE_BALANCE,t_data,gc);
             else if(r_data[2]==RC_Apn::Com_bytes::Picture_style)
-                _get_conf(gp2::Conf_param::PICTURE_STYLE,r_data,t_data,gc);
+                _get_conf(gp2::Conf_param::PICTURE_STYLE,t_data,gc);
             else
             {
                 t_data+=(char)Tram::Com_bytes::NAK;
@@ -344,11 +516,6 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
             std::cout <<"(Ls_files)"<< std::endl;
             _ls_file(t_data);
         }
-        else if(r_data[1]==(char)RC_Apn::Com_bytes::Check_Mem)
-        {
-            std::cout <<"(Ls_files)"<< std::endl;
-            _Check_mem(t_data);
-        }
         else if(r_data[1]==(char)RC_Apn::Com_bytes::Mk_dir)
         {
             std::cout <<"(Ls_files)"<< std::endl;
@@ -361,7 +528,7 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
         else
         {
             std::cout <<"(non reconnue)"<< std::endl;
-            throw Error(16,"commande inconnue: "+r_data[1],Error::niveau::ERROR);
+            throw Error(6,"commande inconnue: "+r_data[1],Error::niveau::ERROR);
         }
     }
     catch(Error & e)
@@ -396,135 +563,4 @@ void init_server_configure(uint32_t & port)
         throw Error(1,"erreur a la lecture de \""+std::string(SERVER_CONF_PATH)+"\"",Error::niveau::WARNING);
 
     If >> port;
-}
-
-int main(int argc,char ** argv)
-{
-    struct gp2::mnt _mount;
-
-    bool as_client=false;
-
-    CSocketTCPServeur Server;
-
-    try
-    {
-        if(system(nullptr));
-        else
-            throw Error(1,"les commandes system ne peuvent etre utilise",Error::niveau::FATAL_ERROR);
-
-        init_mnt_configure(_mount);
-    }
-    catch(Error & e)
-    {
-        std::cerr << e.what() << std::endl;
-
-        if(e.get_niveau()==Error::niveau::FATAL_ERROR)
-            return -1;
-
-        #ifndef WIN32
-        _mount.cmd="gio mount";
-        _mount.path="/run/user/1000/gvfs";
-        #elif
-        return -1;
-        #endif // WIN32
-    }
-
-    uint32_t port;
-    try
-    {
-        init_server_configure(port);
-    }
-    catch(Error & e)
-    {
-        std::cerr << e.what() << std::endl;
-
-        if(e.get_niveau()==Error::niveau::FATAL_ERROR)
-            return -1;
-
-        port=6789;
-    }
-    try
-    {
-        Server.NewSocket(Id_Socket);
-        Server.BindServeur(Id_Socket,INADDR_ANY,port);
-        Server.Listen(Id_Socket,1);
-
-
-        std::clog << "en attente de client" << std::endl;
-
-        Server.AcceptClient(Id_Socket,0);
-
-        std::clog << "client connecté" << std::endl;
-
-        as_client=true;
-    }
-    catch(Error & e)
-    {
-        std::cerr << e.what() << std::endl;
-
-        if(e.get_niveau()!=Error::niveau::WARNING)
-            return -1;
-    }
-    bool ser_b=true;
-    while(ser_b)
-    {
-        Tram Request;
-        Tram Respond;
-        try
-        {
-            Request=Read_Tram(Tram::Com_bytes::EOT,Server,Id_Socket,500);
-        }
-        catch(Error & e)
-        {
-            std::cerr << e.what() << std::endl;
-
-            if(e.get_niveau()==Error::niveau::FATAL_ERROR)
-                return -1;
-
-
-            std::clog << "attente de reconnexion du client" << std::endl;
-
-            Server.AcceptClient(Id_Socket,0);
-
-            std::clog << "client reconnecté" << std::endl;
-
-            continue;
-        }
-
-        try
-        {
-            #ifdef __DEBUG_MODE
-                 std::clog << "Tram R: ("<< Request.size() << " octets) " <<std::hex;
-                for(auto & i:Request.get_data())
-                    std::clog <<"0x"<< static_cast<int>(i) << " ";
-                std::clog  << std::dec << std::endl;
-            #endif // __DEBUG_MODE
-
-            check_acknowledge(Request.get_c_data());
-
-            process(Request.get_c_data(),Respond,ser_b);
-
-            #ifdef __DEBUG_MODE
-                std::clog << "Tram T: ("<< Respond.size() << " octets) " <<std::hex;
-                for(auto & i:Respond.get_data())
-                    std::clog <<"0x"<< static_cast<int>(i) << " ";
-                std::clog  << std::dec << std::endl<< std::endl;
-            #endif // __DEBUG_MODE
-
-            Server.Write(Id_Socket,Respond.get_c_data());
-        }
-        catch(Error & e)
-        {
-            std::cerr << e.what() << std::endl;
-
-            if(e.get_niveau()==Error::niveau::FATAL_ERROR)
-                return -1;
-        }
-
-        std::this_thread::sleep_for(std::chrono::duration<int,std::milli>(20));
-    }
-
-    Server.CloseSocket(Id_Socket);
-
-    return 0;
 }

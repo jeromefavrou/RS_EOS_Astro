@@ -111,9 +111,11 @@ class CSocketTCPServeur
         it=Sk_Client.find(idx);
 
         if(it==Sk_Client.end())
+        {
             throw CSocketTCPServeur::Erreur(7,"Socket ("+ ss_cast<unsigned int,std::string>(idx)+") inutilisable",Error::niveau::ERROR);
+        }
 
-            send(*Sk_Client[idx],buffer.data(),buffer.size(),0);
+        send(*Sk_Client[idx],buffer.data(),buffer.size(),0);
     }
     template<unsigned int octets>int Read(unsigned int const &idx,VCHAR &buffer)
     {
@@ -133,8 +135,7 @@ class CSocketTCPServeur
 
 private:
 
-    std::map<unsigned int,std::shared_ptr<SOCKET>> Sk_Channel;
-    std::map<unsigned int,std::shared_ptr<SOCKET>> Sk_Client;
+    std::map<unsigned int,std::shared_ptr<SOCKET>> Sk_Channel,Sk_Client;
     SOCKADDR_IN ServerAdress,ClientAdress;
 };
 

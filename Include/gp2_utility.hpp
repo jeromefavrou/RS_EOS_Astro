@@ -7,6 +7,9 @@
 #include "utility.hpp"
 #include "Error.hpp"
 
+#define DEFAULT_MNT_CMD "gio mount"
+#define DEFAULT_MNT_FOLDER "/run/user/1000/gvfs"
+
 namespace gp2
 {
     typedef std::vector<std::string> Data;
@@ -24,8 +27,8 @@ namespace gp2
 
     struct mnt
     {
-        std::string cmd;
-        std::string path;
+        std::string cmd=DEFAULT_MNT_CMD;
+        std::string path=DEFAULT_MNT_FOLDER;
     };
 
     void Mount(struct mnt const & ifm);

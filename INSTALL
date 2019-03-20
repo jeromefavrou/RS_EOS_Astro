@@ -22,12 +22,9 @@ mkdir -vp bin/Release
 
 g++  -o bin/Release/RS_EOS_Astro obj/Release/Src/main.o obj/Release/Src/Error.o obj/Release/Src/Gp2_utility.o obj/Release/Src/Tram.o obj/Release/Src/Utility.o  -s -lpthread
 
-mkdir -vp /opt/RS_EOS_Astro
+mkdir -vp ~/RS_EOS_Astro
 
-cp bin/Release/RS_EOS_Astro /opt/RS_EOS_Astro
-cp .mnt_configure /opt/RS_EOS_Astro
-cp .server_configure /opt/RS_EOS_Astro
-
-chmod +x /opt/RS_EOS_Astro/.mnt_configure
-chmod +x /opt/RS_EOS_Astro/.server_configure
+cp bin/Release/RS_EOS_Astro ~/RS_EOS_Astro
+cp .mnt_configure ~/RS_EOS_Astro
+cp .server_configure ~/RS_EOS_Astro
 
