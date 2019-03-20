@@ -36,6 +36,18 @@ the INSTALL file can be edit <br/>
   and run the programme <br/>
  -> ./RS_EOS_Astro <br/>
  
+ # Configuration <br/>
+ 2 essentials files are used by RS_EOS_Astro (will be created in the first run RS_EOS_Astro but warning relative directory)<br/>
+ 
+ .mnt_configure <br/>
+  - configure the methode for mount device <br/>
+  - configure the path of mount <br/>
+  
+ .server_configure <br/>
+  - Configure the port of server <br/>
+  
+  for most information go on the wiki : https://github.com/jeromefavrou/RS_EOS_Astro/wiki <br/>
+ 
  # WARNING
  don't run INSTALL on sudo <br/>
  don't run RS_EOS_Astro on sudo <br/>
