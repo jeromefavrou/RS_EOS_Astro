@@ -1,4 +1,5 @@
 //#define __DEBUG_MODE
+#define VERSION "V_01.01"
 
 #define MNT_CONF_PATH ".mnt_configure"
 #define SERVER_CONF_PATH ".server_configure"
@@ -467,11 +468,8 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
             else if(r_data[2]==RC_Apn::Com_bytes::Picture_style)
                 _get_conf(gp2::Conf_param::PICTURE_STYLE,t_data,gc);
             else
-            {
-                t_data+=(char)Tram::Com_bytes::NAK;
-                t_data+="demande de Get_Config inconnue: ";
-                t_data+=r_data[2];
-            }
+                throw Error(6,"demande de Get_Config inconnue: "+r_data[2],Error::niveau::ERROR);
+
         }
         else if(r_data[1]==(char)RC_Apn::Com_bytes::Set_Config)
         {
@@ -490,11 +488,8 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
             else if(r_data[2]==RC_Apn::Com_bytes::Picture_style)
                 _set_conf(gp2::Conf_param::PICTURE_STYLE,r_data,t_data);
             else
-            {
-                t_data+=(char)Tram::Com_bytes::NAK;
-                t_data+="demande de Set_Config inconnue: ";
-                t_data+=r_data[2];
-            }
+                throw Error(6,"demande de Set_Config inconnue: "+r_data[2],Error::niveau::ERROR);
+
         }
         else if(r_data[1]==(char)RC_Apn::Com_bytes::Capture_Eos_Dslr)
         {
@@ -524,6 +519,11 @@ void process(VCHAR const & r_data,Tram & t_data,bool & serv_b)
         else if(r_data[1]==(char)Tram::Com_bytes::CS)
         {
             serv_b=false;
+        }
+        else if(r_data[1]==(char)Tram::Com_bytes::ENQ)
+        {
+            t_data+=(char)Tram::Com_bytes::ACK;
+            t_data+=std::string(VERSION);
         }
         else
         {

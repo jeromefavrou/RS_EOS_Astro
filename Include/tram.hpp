@@ -23,6 +23,7 @@ class Tram
         public:
             static char constexpr SOH=0x01; //Start of Heading
             static char constexpr EOT=0x04; //End of Transmission
+            static char constexpr ENQ=0x05; //Enquiry
             static char constexpr ACK=0x06; //Acknowledge
             static char constexpr NAK=0x15; //Negative Acknowledge
             static char constexpr US= 0x1F; //Unit Separator
