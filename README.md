@@ -6,7 +6,7 @@ compatible with https://github.com/jeromefavrou/Intervallometre <br/>
 
 you can use directly release version for linux vesion <br/>
  - Ubuntu xi86: <br/>
-  -> wget https://github.com/jeromefavrou/RS_EOS_Astro/releases/download/V_01.0/RS_EOS_Astro <br/>
+  -> wget https://github.com/jeromefavrou/RS_EOS_Astro/releases/download/V_01.01/RS_EOS_Astro <br/>
  - Raspbian ARM x64: <br/>
   -> wget https://github.com/jeromefavrou/RS_EOS_Astro/releases/download/rasp_V_01.0/RS_EOS_Astro <br/>
  
